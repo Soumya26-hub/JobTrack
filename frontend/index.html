@@ -19,6 +19,7 @@
   <nav class="tabs" role="tablist">
     <button type="button" class="tab active" data-tab="applications-view" role="tab">Applications</button>
     <button type="button" class="tab" data-tab="match-view" role="tab">Resume Match</button>
+    <button type="button" class="tab" data-tab="jobs-view" role="tab">Find Jobs</button>
   </nav>
 
   <main>
@@ -125,6 +126,44 @@
         <p id="profile-status" class="meta" role="status"></p>
       </form>
     </details>
+  </div>
+
+  <div id="jobs-view" hidden>
+    <form id="job-search-form" class="card form">
+      <h2>Find jobs</h2>
+      <div class="row">
+        <label>Role *<input name="role" required minlength="2" maxlength="100"
+          placeholder="e.g. Python Developer"></label>
+        <label>Location<input name="location" value="Chennai" maxlength="100"></label>
+      </div>
+      <button type="submit" id="job-search-button" class="primary">Search</button>
+      <p id="job-sources" class="meta"></p>
+    </form>
+
+    <details id="paste-job" class="card profile">
+      <summary>Paste a job (LinkedIn, Naukri…)</summary>
+      <form id="paste-form" class="form">
+        <p class="hint">Copy a job from any site and save it here. JobTrack never reads
+          LinkedIn or Naukri itself.</p>
+        <label>Job link<input name="job_link" type="url" placeholder="https://"></label>
+        <div class="row">
+          <label>Company *<input name="company" required maxlength="100"></label>
+          <label>Role<input name="role" maxlength="100" placeholder="Read from the description if empty"></label>
+        </div>
+        <label>Location<input name="location"></label>
+        <label>Job description *
+          <textarea name="job_description" rows="8" required minlength="20"
+            placeholder="Paste the full job description here"></textarea>
+        </label>
+        <button type="submit" class="primary">Save to tracker</button>
+        <p id="paste-status" class="meta" role="status" hidden>
+          Saved to your Wishlist. <a href="#" id="go-to-applications">Open Applications</a>
+        </p>
+      </form>
+    </details>
+
+    <p id="job-warnings" class="banner" hidden></p>
+    <section id="job-results" aria-live="polite"></section>
   </div>
   </main>
 

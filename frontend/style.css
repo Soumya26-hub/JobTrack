@@ -190,3 +190,21 @@ button.danger { color: var(--danger); }
 .match-line { margin: 8px 0 0; font-size: 0.85rem; }
 .match-line summary { cursor: pointer; color: var(--navy); font-weight: 600; }
 .match-line p { margin: 6px 0 0; line-height: 1.45; }
+
+/* ---------- Find Jobs ---------- */
+/* Three tabs must fit at phone width. */
+.tab { padding: 8px 4px; }
+#job-search-form .meta { margin-top: 10px; }
+.job-card .card-top h3 { overflow-wrap: anywhere; }
+.score-badge {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.score-high { background: #e7f6ec; color: var(--offer); }
+.score-mid { background: #fff1d6; color: var(--interview); }
+.score-low { background: #eceef2; color: var(--wishlist); }
+.job-skills { margin-top: 8px; }
+.job-note { margin: 8px 0 0; font-size: 0.8rem; }

@@ -297,22 +297,25 @@ searchInput.addEventListener("input", () => {
 
 const tabs = document.querySelectorAll(".tab");
 
-tabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    tabs.forEach((t) => t.classList.toggle("active", t === tab));
-    document.querySelector("#applications-view").hidden = tab.dataset.tab !== "applications-view";
-    document.querySelector("#match-view").hidden = tab.dataset.tab !== "match-view";
-    // The + Add button only makes sense on the Applications tab.
-    toggleFormButton.hidden = tab.dataset.tab !== "applications-view";
-    showError("");
-    if (tab.dataset.tab === "match-view") {
-      loadApplicationChoices();
-      loadProfile();
-    } else {
-      refresh();
-    }
+function showTab(name) {
+  tabs.forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.tab === name);
+    document.querySelector(`#${tab.dataset.tab}`).hidden = tab.dataset.tab !== name;
   });
-});
+  // The + Add button only makes sense on the Applications tab.
+  toggleFormButton.hidden = name !== "applications-view";
+  showError("");
+  if (name === "match-view") {
+    loadApplicationChoices();
+    loadProfile();
+  } else if (name === "jobs-view") {
+    loadJobSources();
+  } else {
+    refresh();
+  }
+}
+
+tabs.forEach((tab) => tab.addEventListener("click", () => showTab(tab.dataset.tab)));
 
 // ---------- Resume Match agent ----------
 
@@ -425,6 +428,178 @@ profileForm.addEventListener("submit", async (event) => {
     status.textContent = "";
     showError(error.message);
   }
+});
+
+// ---------- Find Jobs ----------
+
+const jobSearchForm = document.querySelector("#job-search-form");
+const jobSearchButton = document.querySelector("#job-search-button");
+const jobSourcesLine = document.querySelector("#job-sources");
+const jobWarnings = document.querySelector("#job-warnings");
+const jobResults = document.querySelector("#job-results");
+const pasteForm = document.querySelector("#paste-form");
+const pasteStatus = document.querySelector("#paste-status");
+
+const MAX_SKILL_CHIPS = 5;
+const SCORE_NOTE = "Score is based on a shortened description. Paste the full job description in Resume Match for an exact score.";
+const NO_SOURCES_MESSAGE = "Add an Adzuna or Jooble key to .env, or list companies in GREENHOUSE_BOARDS / LEVER_COMPANIES.";
+let anySourceReady = false;
+
+function postJson(url, data) {
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+async function loadJobSources() {
+  try {
+    const response = await fetch("/api/jobs/sources");
+    if (!response.ok) throw new Error(await readError(response));
+    const sources = await response.json();
+    anySourceReady = sources.some((source) => source.ready);
+    // Key-based sources need a key; company boards need company names. The keys themselves never reach the page.
+    jobSourcesLine.textContent = sources
+      .map((source) => {
+        if (source.ready) return `${source.name} ✓`;
+        const needs = ["Adzuna", "Jooble"].includes(source.name) ? "add a key" : "list companies";
+        return `${source.name} – ${needs} in .env`;
+      })
+      .join(" · ");
+  } catch (error) {
+    showError(error.message);
+  }
+}
+
+function showWarnings(warnings) {
+  jobWarnings.textContent = warnings.join(" ");
+  jobWarnings.hidden = warnings.length === 0;
+}
+
+function scoreClass(score) {
+  if (score >= 70) return "score-high";
+  if (score >= 40) return "score-mid";
+  return "score-low";
+}
+
+function markSaved(button) {
+  button.textContent = "Saved ✓";
+  button.disabled = true;
+}
+
+async function saveJob(job, button) {
+  button.disabled = true;
+  try {
+    const response = await postJson("/api/jobs/save", job);
+    // 409 means it is already in the tracker, which is what the user wanted anyway.
+    if (!response.ok && response.status !== 409) throw new Error(await readError(response));
+    markSaved(button);
+    showError("");
+  } catch (error) {
+    button.disabled = false;
+    showError(error.message);
+  }
+}
+
+function createJobCard(job) {
+  const card = element("article", "card job-card");
+
+  const top = element("div", "card-top");
+  const titles = element("div");
+  titles.append(
+    element("h3", "", job.title),
+    element("p", "meta", [job.company, job.location, job.source].filter(Boolean).join(" · ")),
+  );
+  top.append(titles, element("span", `score-badge ${scoreClass(job.match_score)}`, `${job.match_score}%`));
+  card.append(top);
+
+  const chips = element("div", "skill-chips job-skills");
+  for (const skill of job.matched_skills.slice(0, MAX_SKILL_CHIPS)) {
+    chips.append(element("span", "skill have", skill));
+  }
+  if (chips.children.length) card.append(chips);
+
+  const review = job.missing_skills.length ? job.missing_skills.join(", ") : "none";
+  card.append(element("p", "meta", `Skills to review: ${review}`));
+  card.append(element("p", "hint job-note", SCORE_NOTE));
+
+  const actions = element("div", "actions");
+  const open = element("a", "button-link", "Open");
+  open.href = job.url;
+  open.target = "_blank";
+  open.rel = "noopener";
+
+  const save = element("button", "primary", "Save");
+  save.type = "button";
+  if (job.already_saved) markSaved(save);
+  save.addEventListener("click", () => saveJob(job, save));
+
+  actions.append(open, save);
+  card.append(actions);
+  return card;
+}
+
+function renderJobs(jobs) {
+  jobResults.replaceChildren();
+  if (jobs.length === 0) {
+    const message = anySourceReady ? "No jobs found. Try a broader role, or another location." : NO_SOURCES_MESSAGE;
+    jobResults.append(element("p", "empty", message));
+    return;
+  }
+  for (const job of jobs) {
+    jobResults.append(createJobCard(job));
+  }
+}
+
+jobSearchForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const params = new URLSearchParams({
+    role: jobSearchForm.elements.role.value.trim(),
+    location: jobSearchForm.elements.location.value.trim(),
+  });
+  // Searching several sites can take a few seconds; stop double submits meanwhile.
+  jobSearchButton.disabled = true;
+  jobSearchButton.textContent = "Searching…";
+  try {
+    const response = await fetch(`/api/jobs/search?${params}`);
+    if (!response.ok) throw new Error(await readError(response));
+    const data = await response.json();
+    renderJobs(data.jobs);
+    showWarnings(data.warnings);
+    showError("");
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    jobSearchButton.disabled = false;
+    jobSearchButton.textContent = "Search";
+  }
+});
+
+pasteForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(pasteForm));
+  // Empty optional fields are sent as null instead of "".
+  for (const key of ["job_link", "role", "location"]) {
+    data[key] = data[key].trim() || null;
+  }
+  try {
+    const response = await postJson("/api/jobs/paste", data);
+    if (!response.ok) throw new Error(await readError(response));
+    pasteForm.reset();
+    pasteStatus.hidden = false;
+    showError("");
+  } catch (error) {
+    pasteStatus.hidden = true;
+    showError(error.message);
+  }
+});
+
+document.querySelector("#go-to-applications").addEventListener("click", (event) => {
+  event.preventDefault();
+  pasteStatus.hidden = true;
+  showTab("applications-view");
+  window.scrollTo({ top: 0 });
 });
 
 refresh();

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,10 @@ from .schemas import (
     ApplicationCreate,
     ApplicationRead,
     ApplicationUpdate,
+    JobPaste,
+    JobSave,
+    JobSearchResponse,
+    JobSourceStatus,
     MatchRequest,
     MatchResult,
     ProfileRead,
@@ -100,6 +104,41 @@ def resume_match(request: MatchRequest, db: Session = Depends(get_db)):
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
     return result
+
+
+# ---------- Find Jobs ----------
+
+ALREADY_SAVED = "Already in your tracker"
+
+
+@app.get("/api/jobs/search", response_model=JobSearchResponse)
+def search_jobs(
+    role: str = Query(min_length=2, max_length=100),
+    location: str = Query(default="", max_length=100),
+    db: Session = Depends(get_db),
+):
+    return crud.search_jobs(db, role, location)
+
+
+@app.get("/api/jobs/sources", response_model=list[JobSourceStatus])
+def job_sources_status():
+    return crud.job_source_status()
+
+
+@app.post("/api/jobs/save", response_model=ApplicationRead, status_code=status.HTTP_201_CREATED)
+def save_job(job: JobSave, db: Session = Depends(get_db)):
+    application = crud.save_job(db, job)
+    if application is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=ALREADY_SAVED)
+    return application
+
+
+@app.post("/api/jobs/paste", response_model=ApplicationRead, status_code=status.HTTP_201_CREATED)
+def paste_job(data: JobPaste, db: Session = Depends(get_db)):
+    application = crud.paste_job(db, data)
+    if application is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=ALREADY_SAVED)
+    return application
 
 
 # Serve the web page from the same server, so the phone only needs one address.

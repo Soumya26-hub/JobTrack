@@ -3,10 +3,11 @@ from datetime import date, timedelta
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from . import resume_agent
+from . import job_sources, resume_agent
+from .config import load_settings
 from .default_profile import DEFAULT_PROFILE
 from .models import STATUSES, Application, ResumeProfile
-from .schemas import ApplicationCreate, ApplicationUpdate, MatchRequest, ProfileUpdate
+from .schemas import ApplicationCreate, ApplicationUpdate, JobPaste, JobSave, MatchRequest, ProfileUpdate
 
 
 FOLLOW_UP_AFTER_DAYS = 7
@@ -60,9 +61,17 @@ def update_application(
     if application is None:
         return None
 
+    changes = data.model_dump(exclude_unset=True)
+
+    # A job saved to the Wishlist weeks ago and applied to today gets today's date and
+    # a fresh reminder, unless the request sets those dates itself.
+    if application.status == "Wishlist" and changes.get("status") == "Applied":
+        changes.setdefault("applied_date", date.today())
+        changes.setdefault("follow_up_date", date.today() + timedelta(days=FOLLOW_UP_AFTER_DAYS))
+
     # Only change the fields the client actually sent. Required columns are
     # never cleared, even if the client sends them as null.
-    for field, value in data.model_dump(exclude_unset=True).items():
+    for field, value in changes.items():
         if value is None and field in REQUIRED_FIELDS:
             continue
         setattr(application, field, value)
@@ -124,6 +133,12 @@ def get_profile(db: Session) -> ResumeProfile:
     return profile
 
 
+def profile_dict(db: Session) -> dict:
+    """The profile as the plain dict the Resume Match agent expects."""
+    profile = get_profile(db)
+    return {"intro": profile.intro, "skills": profile.skills, "highlights": profile.highlights}
+
+
 def update_profile(db: Session, data: ProfileUpdate) -> ResumeProfile:
     profile = get_profile(db)
     for field, value in data.model_dump().items():
@@ -144,11 +159,7 @@ def run_resume_match(db: Session, request: MatchRequest) -> dict | None:
         if application is None:
             return None
 
-    profile = get_profile(db)
-    result = resume_agent.analyze(
-        request.job_description,
-        {"intro": profile.intro, "skills": profile.skills, "highlights": profile.highlights},
-    )
+    result = resume_agent.analyze(request.job_description, profile_dict(db))
 
     if application is not None:
         application.job_description = request.job_description
@@ -158,3 +169,95 @@ def run_resume_match(db: Session, request: MatchRequest) -> dict | None:
         result["saved_to_application"] = application.id
 
     return result
+
+
+# ---------- Find Jobs ----------
+
+MAX_SEARCH_RESULTS = 50
+UNKNOWN_ROLE = "Unknown role"
+
+
+def job_source_status() -> list[dict]:
+    return job_sources.source_status(load_settings())
+
+
+def search_jobs(db: Session, role: str, location: str) -> dict:
+    """Search every configured source, score each job against my resume, best match first."""
+    result = job_sources.search_all(role.strip(), location.strip(), load_settings())
+    profile = profile_dict(db)
+    # One query for all saved links, instead of one query per job.
+    saved_links = {link for (link,) in db.query(Application.job_link).filter(Application.job_link.isnot(None))}
+
+    for job in result["jobs"]:
+        match = resume_agent.analyze(job["description"], profile)
+        job["match_score"] = match["match_score"]
+        job["matched_skills"] = match["matched_skills"]
+        job["missing_skills"] = match["missing_skills"]
+        job["already_saved"] = job["url"] in saved_links
+
+    result["jobs"].sort(key=lambda job: job["match_score"], reverse=True)
+    result["jobs"] = result["jobs"][:MAX_SEARCH_RESULTS]
+    return result
+
+
+def link_already_saved(db: Session, job_link: str | None) -> bool:
+    if not job_link:
+        return False
+    return db.query(Application.id).filter(Application.job_link == job_link).first() is not None
+
+
+def save_scored_job(db: Session, *, company, role, location, job_link, description, source, external_id):
+    """
+    Save a found or pasted job to the Wishlist, with a fresh Resume Match score.
+    Returns None if the same link is already in the tracker.
+    """
+    if link_already_saved(db, job_link):
+        return None
+
+    match = resume_agent.analyze(description, profile_dict(db))
+    application = Application(
+        company=company,
+        role=role,
+        location=location or None,
+        job_link=job_link,
+        # Wishlist: saved to apply later, so no follow-up reminder yet.
+        status="Wishlist",
+        applied_date=date.today(),
+        job_description=description,
+        match_score=match["match_score"],
+        tailored_summary=match["tailored_summary"],
+        source=source,
+        external_id=external_id or None,
+    )
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return application
+
+
+def save_job(db: Session, job: JobSave) -> Application | None:
+    return save_scored_job(
+        db,
+        company=job.company,
+        role=job.title,
+        location=job.location,
+        job_link=job.url,
+        description=job.description,
+        source=job.source,
+        external_id=job.external_id,
+    )
+
+
+def paste_job(db: Session, data: JobPaste) -> Application | None:
+    """A job copied by hand. If no role is typed, read it from a 'Job Title:' line."""
+    role = (data.role or "").strip() or resume_agent.find_job_title(data.job_description) or UNKNOWN_ROLE
+    return save_scored_job(
+        db,
+        company=data.company,
+        role=role[:100],
+        location=(data.location or "").strip(),
+        job_link=data.job_link,
+        description=data.job_description,
+        source="Pasted",
+        external_id=None,
+    )

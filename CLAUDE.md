@@ -14,7 +14,7 @@ in an interview. Keep it simple and readable.
   do not add test files to the project unless asked.
 
 ## Feature specs
-- `docs/FIND_JOBS_SPEC.md`: the Find Jobs feature (job-search APIs + Paste job). Follow it when asked to build that feature.
+- `docs/FIND_JOBS_SPEC.md`: the Find Jobs feature (job-search APIs + Paste job). Built; follow it when changing that feature.
 
 ## Layout
 - `backend/main.py`: routes and app startup (lifespan creates tables)
@@ -22,6 +22,9 @@ in an interview. Keep it simple and readable.
 - `backend/resume_agent.py`: Resume Match agent. Pure Python, no database or FastAPI
   imports, so it can be tested on its own. Skill dictionary is `SKILLS`.
 - `backend/default_profile.py`: starting resume profile (seeded on first use)
+- `backend/job_sources.py`: Adzuna, Jooble, Greenhouse and Lever calls; every source
+  returns the same job dict. `fetch_json` is the only network call (patch it in tests).
+- `backend/config.py`: reads job-search keys from `.env` with a small parser of its own
 - `backend/models.py`: `Application` (status CHECK constraint) and `ResumeProfile`
 - `backend/schemas.py`: Pydantic request and response models
 - `backend/database.py`: engine, session, `get_db`
@@ -38,6 +41,10 @@ in an interview. Keep it simple and readable.
   intro and highlights. Missing skills are shown, never added automatically.
 - New columns on `applications` must also be added to `add_missing_columns()` in
   database.py, because `create_all()` does not alter existing tables.
+- HTTP calls use urllib only (no `requests`, `httpx` or other packages in the app).
+- Keys come from `.env`, never from code. Only `.env.example`, with empty values, is committed.
+- Never scrape sites that forbid it (LinkedIn, Naukri, Indeed). Their jobs come in
+  only through Paste job.
 - Platform is Windows. Use `venv\Scripts\activate` and `python`, not `python3`.
 
 ## Run

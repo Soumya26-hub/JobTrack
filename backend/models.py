@@ -34,6 +34,10 @@ class Application(Base):
     match_score = Column(Integer)
     tailored_summary = Column(Text)
 
+    # Where a job came from (Adzuna, Jooble, Greenhouse, Lever or Pasted) and its id there.
+    source = Column(String)
+    external_id = Column(String)
+
 
 class ResumeProfile(Base):
     """My resume content that the Resume Match agent compares against. One row only."""

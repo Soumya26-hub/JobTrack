@@ -33,6 +33,8 @@ def add_missing_columns():
         "job_description": "TEXT",
         "match_score": "INTEGER",
         "tailored_summary": "TEXT",
+        "source": "VARCHAR",
+        "external_id": "VARCHAR",
     }
     with engine.begin() as connection:
         for name, sql_type in new_columns.items():

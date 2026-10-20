@@ -67,6 +67,8 @@ class ApplicationRead(BaseModel):
     job_description: str | None = None
     match_score: int | None = None
     tailored_summary: str | None = None
+    source: str | None = None
+    external_id: str | None = None
 
 
 class ProfileRead(BaseModel):
@@ -105,6 +107,62 @@ class MatchResult(BaseModel):
     missing_skills: list[str]
     tailored_summary: str
     saved_to_application: int | None = None
+
+
+# ---------- Find Jobs ----------
+
+class JobSave(BaseModel):
+    """One job from the search results, sent back when the user taps Save."""
+
+    source: str = Field(min_length=1, max_length=50)
+    external_id: str = Field(default="", max_length=200)
+    title: str = Field(min_length=1, max_length=300)
+    company: str = Field(min_length=1, max_length=200)
+    location: str = Field(default="", max_length=500)
+    url: str = Field(min_length=1, max_length=2000)
+    description: str = Field(default="", max_length=20000)
+    posted: str | None = None
+
+    _check_link = field_validator("url")(check_link)
+
+
+class JobResult(JobSave):
+    match_score: int
+    matched_skills: list[str]
+    missing_skills: list[str]
+    already_saved: bool = False
+
+
+class JobSearchResponse(BaseModel):
+    jobs: list[JobResult]
+    warnings: list[str]
+    sources_used: list[str]
+
+
+class JobSourceStatus(BaseModel):
+    name: str
+    ready: bool
+
+
+class JobPaste(BaseModel):
+    """A job copied by hand from LinkedIn, Naukri or anywhere else."""
+
+    job_description: str = Field(min_length=20, max_length=50000)
+    company: str = Field(min_length=1, max_length=100)
+    role: str | None = Field(default=None, max_length=100)
+    location: str | None = None
+    job_link: str | None = None
+
+    _require_text = field_validator("company")(require_text)
+    _check_link = field_validator("job_link")(check_link)
+
+    @field_validator("job_description")
+    @classmethod
+    def require_full_description(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 20:
+            raise ValueError("paste the full job description (at least 20 characters)")
+        return value
 
 
 class Stats(BaseModel):
