@@ -1,0 +1,144 @@
+:root {
+  --navy: #1f3864;
+  --bg: #f4f6fa;
+  --card: #ffffff;
+  --text: #1c2333;
+  --muted: #5d6676;
+  --border: #dde2ea;
+  --danger: #b42318;
+  --wishlist: #6b7280;
+  --applied: #2563eb;
+  --interview: #b45309;
+  --offer: #15803d;
+  --rejected: #b42318;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--navy);
+  color: #fff;
+}
+.app-header h1 { margin: 0; font-size: 1.3rem; }
+
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 4px;
+  text-align: center;
+}
+.stat span { display: block; font-size: 1.4rem; font-weight: 700; color: var(--navy); }
+.stat small { color: var(--muted); font-size: 0.75rem; }
+
+.banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7e6;
+  border: 1px solid #f5c26b;
+}
+.banner.error { background: #fdecea; border-color: #f1a9a2; color: var(--danger); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+/* Keep the form title visible below the sticky header when scrolled into view. */
+.form { scroll-margin-top: 76px; }
+.form h2 { margin: 0 0 10px; font-size: 1.1rem; }
+.form label { display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--muted); }
+.form input, .form select, .form textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font: inherit;
+  color: var(--text);
+}
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+
+input, select, textarea {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 16px; /* 16px stops phones from zooming in on focus */
+}
+
+button, .button-link {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+button.primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+.app-header button.primary { background: #fff; color: var(--navy); font-weight: 600; }
+button.danger { color: var(--danger); }
+
+.filters input { width: 100%; margin-bottom: 10px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; }
+.chip { flex: none; border-radius: 999px; min-height: 34px; padding: 6px 12px; font-size: 0.9rem; }
+.chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+.application { border-left: 5px solid var(--applied); }
+.status-wishlist { border-left-color: var(--wishlist); }
+.status-interview { border-left-color: var(--interview); }
+.status-offer { border-left-color: var(--offer); }
+.status-rejected { border-left-color: var(--rejected); opacity: 0.8; }
+
+.card-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.card-top h3 { margin: 0; font-size: 1.05rem; }
+.role { margin: 2px 0 0; }
+.status-select { flex: none; padding: 6px 8px; font-size: 0.9rem; }
+.meta { margin: 8px 0 0; color: var(--muted); font-size: 0.85rem; }
+.notes { margin: 8px 0 0; white-space: pre-wrap; font-size: 0.9rem; }
+.badge {
+  display: inline-block;
+  margin: 8px 0 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff1d6;
+  color: var(--interview);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.empty { text-align: center; color: var(--muted); padding: 32px 0; }
+
+@media (max-width: 380px) {
+  .stat span { font-size: 1.15rem; }
+  .row { flex-direction: column; gap: 0; }
+}

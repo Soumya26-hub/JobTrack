@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f3864">
+  <title>JobTrack</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>JobTrack</h1>
+    <button id="toggle-form" type="button" class="primary">+ Add</button>
+  </header>
+
+  <main>
+    <section class="stats" aria-label="Summary">
+      <div class="stat"><span id="stat-total">0</span><small>Total</small></div>
+      <div class="stat"><span id="stat-interview">0</span><small>Interviews</small></div>
+      <div class="stat"><span id="stat-offer">0</span><small>Offers</small></div>
+      <div class="stat"><span id="stat-rate">0%</span><small>Response</small></div>
+    </section>
+
+    <p id="follow-up-banner" class="banner" hidden></p>
+    <p id="error-banner" class="banner error" role="alert" hidden></p>
+
+    <form id="application-form" class="card form" hidden>
+      <h2 id="form-title">New application</h2>
+      <label>Company *<input name="company" required maxlength="100"></label>
+      <label>Role *<input name="role" required maxlength="100"></label>
+      <label>Location<input name="location"></label>
+      <label>Job link<input name="job_link" type="url" placeholder="https://"></label>
+      <div class="row">
+        <label>Status
+          <select name="status">
+            <option>Wishlist</option>
+            <option selected>Applied</option>
+            <option>Interview</option>
+            <option>Offer</option>
+            <option>Rejected</option>
+          </select>
+        </label>
+        <label>Applied on<input name="applied_date" type="date"></label>
+      </div>
+      <label>Follow up on<input name="follow_up_date" type="date"></label>
+      <label>Notes<textarea name="notes" rows="3"></textarea></label>
+      <div class="row">
+        <button type="submit" class="primary">Save</button>
+        <button type="button" id="cancel-form">Cancel</button>
+      </div>
+    </form>
+
+    <section class="filters">
+      <input id="search" type="search" placeholder="Search company or role">
+      <div id="status-filters" class="chips" role="group" aria-label="Filter by status">
+        <button type="button" class="chip active" data-status="">All</button>
+        <button type="button" class="chip" data-status="Wishlist">Wishlist</button>
+        <button type="button" class="chip" data-status="Applied">Applied</button>
+        <button type="button" class="chip" data-status="Interview">Interview</button>
+        <button type="button" class="chip" data-status="Offer">Offer</button>
+        <button type="button" class="chip" data-status="Rejected">Rejected</button>
+      </div>
+    </section>
+
+    <section id="application-list" aria-live="polite"></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
