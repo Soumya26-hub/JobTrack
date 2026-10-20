@@ -127,6 +127,15 @@ function createCard(application) {
     card.append(element("p", "notes", application.notes));
   }
 
+  if (application.match_score !== null && application.tailored_summary) {
+    const match = element("details", "match-line");
+    match.append(
+      element("summary", "", `Resume match: ${application.match_score}%`),
+      element("p", "", application.tailored_summary),
+    );
+    card.append(match);
+  }
+
   const actions = element("div", "actions");
   if (application.job_link) {
     const link = element("a", "button-link", "Open job");
@@ -282,6 +291,140 @@ searchInput.addEventListener("input", () => {
     searchText = searchInput.value.trim();
     refresh();
   }, 300);
+});
+
+// ---------- Tabs ----------
+
+const tabs = document.querySelectorAll(".tab");
+
+tabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    tabs.forEach((t) => t.classList.toggle("active", t === tab));
+    document.querySelector("#applications-view").hidden = tab.dataset.tab !== "applications-view";
+    document.querySelector("#match-view").hidden = tab.dataset.tab !== "match-view";
+    // The + Add button only makes sense on the Applications tab.
+    toggleFormButton.hidden = tab.dataset.tab !== "applications-view";
+    showError("");
+    if (tab.dataset.tab === "match-view") {
+      loadApplicationChoices();
+      loadProfile();
+    } else {
+      refresh();
+    }
+  });
+});
+
+// ---------- Resume Match agent ----------
+
+const matchForm = document.querySelector("#match-form");
+const matchApplication = document.querySelector("#match-application");
+const matchResult = document.querySelector("#match-result");
+const profileForm = document.querySelector("#profile-form");
+
+async function loadApplicationChoices() {
+  try {
+    const applications = await api();
+    const selected = matchApplication.value;
+    matchApplication.replaceChildren(new Option("Don't save", ""));
+    for (const application of applications) {
+      matchApplication.append(new Option(`${application.company} – ${application.role}`, application.id));
+    }
+    matchApplication.value = selected;
+  } catch (error) {
+    showError(error.message);
+  }
+}
+
+function renderSkills(container, skills, className, emptyText) {
+  container.replaceChildren();
+  if (skills.length === 0) {
+    container.append(element("span", "meta", emptyText));
+    return;
+  }
+  for (const skill of skills) {
+    container.append(element("span", `skill ${className}`, skill));
+  }
+}
+
+function renderMatch(result) {
+  document.querySelector("#result-title").textContent = result.job_title || "Match result";
+  document.querySelector("#result-years").textContent = result.years_required
+    ? `Asks for about ${result.years_required}+ years of experience`
+    : "";
+  document.querySelector("#result-score").textContent = `${result.match_score}%`;
+  renderSkills(document.querySelector("#result-matched"), result.matched_skills, "have", "No listed skills matched.");
+  renderSkills(document.querySelector("#result-missing"), result.missing_skills, "missing", "Nothing missing. Great fit!");
+  document.querySelector("#result-summary").textContent = result.tailored_summary;
+  document.querySelector("#result-saved").textContent = result.saved_to_application
+    ? "Saved to the application. You'll see it on its card."
+    : "";
+  matchResult.hidden = false;
+  matchResult.scrollIntoView({ behavior: "smooth" });
+}
+
+matchForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = {
+    job_description: matchForm.elements.job_description.value,
+    application_id: matchApplication.value ? Number(matchApplication.value) : null,
+  };
+  try {
+    const response = await fetch("/api/agent/resume-match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error(await readError(response));
+    renderMatch(await response.json());
+    showError("");
+  } catch (error) {
+    showError(error.message);
+  }
+});
+
+document.querySelector("#copy-summary").addEventListener("click", async (event) => {
+  const text = document.querySelector("#result-summary").textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    event.target.textContent = "Copied!";
+  } catch {
+    // Clipboard access can be blocked on plain http; selecting the text lets you copy by hand.
+    window.getSelection().selectAllChildren(document.querySelector("#result-summary"));
+    event.target.textContent = "Text selected – copy it";
+  }
+  setTimeout(() => (event.target.textContent = "Copy summary"), 2000);
+});
+
+async function loadProfile() {
+  try {
+    const response = await fetch("/api/profile");
+    if (!response.ok) throw new Error(await readError(response));
+    const profile = await response.json();
+    for (const field of ["intro", "skills", "highlights"]) {
+      profileForm.elements[field].value = profile[field];
+    }
+  } catch (error) {
+    showError(error.message);
+  }
+}
+
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(profileForm));
+  const status = document.querySelector("#profile-status");
+  try {
+    const response = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error(await readError(response));
+    status.textContent = "Profile saved.";
+    showError("");
+  } catch (error) {
+    status.textContent = "";
+    showError(error.message);
+  }
 });
 
 refresh();

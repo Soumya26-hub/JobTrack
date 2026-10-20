@@ -6,14 +6,25 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from . import crud
-from .database import Base, engine, get_db
-from .schemas import ApplicationCreate, ApplicationRead, ApplicationUpdate, Stats, Status
+from .database import Base, add_missing_columns, engine, get_db
+from .schemas import (
+    ApplicationCreate,
+    ApplicationRead,
+    ApplicationUpdate,
+    MatchRequest,
+    MatchResult,
+    ProfileRead,
+    ProfileUpdate,
+    Stats,
+    Status,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create the tables once when the server starts.
+    # Create the tables once when the server starts, and upgrade an older database.
     Base.metadata.create_all(bind=engine)
+    add_missing_columns()
     yield
 
 
@@ -69,6 +80,26 @@ def update_application(application_id: int, data: ApplicationUpdate, db: Session
 def delete_application(application_id: int, db: Session = Depends(get_db)):
     if crud.delete_application(db, application_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+
+# ---------- Resume Match agent ----------
+
+@app.get("/api/profile", response_model=ProfileRead)
+def read_profile(db: Session = Depends(get_db)):
+    return crud.get_profile(db)
+
+
+@app.put("/api/profile", response_model=ProfileRead)
+def update_profile(data: ProfileUpdate, db: Session = Depends(get_db)):
+    return crud.update_profile(db, data)
+
+
+@app.post("/api/agent/resume-match", response_model=MatchResult)
+def resume_match(request: MatchRequest, db: Session = Depends(get_db)):
+    result = crud.run_resume_match(db, request)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    return result
 
 
 # Serve the web page from the same server, so the phone only needs one address.

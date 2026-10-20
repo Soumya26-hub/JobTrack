@@ -64,6 +64,47 @@ class ApplicationRead(BaseModel):
     applied_date: date
     follow_up_date: date | None
     notes: str | None
+    job_description: str | None = None
+    match_score: int | None = None
+    tailored_summary: str | None = None
+
+
+class ProfileRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    intro: str
+    skills: str
+    highlights: str
+
+
+class ProfileUpdate(BaseModel):
+    intro: str = Field(min_length=1)
+    skills: str = Field(min_length=1)
+    highlights: str = Field(min_length=1)
+
+
+class MatchRequest(BaseModel):
+    job_description: str = Field(min_length=20, max_length=20000)
+    # Optional: save the result on this application.
+    application_id: int | None = None
+
+    @field_validator("job_description")
+    @classmethod
+    def require_full_description(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 20:
+            raise ValueError("paste the full job description (at least 20 characters)")
+        return value
+
+
+class MatchResult(BaseModel):
+    job_title: str | None
+    years_required: int | None
+    match_score: int
+    matched_skills: list[str]
+    missing_skills: list[str]
+    tailored_summary: str
+    saved_to_application: int | None = None
 
 
 class Stats(BaseModel):

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
@@ -20,3 +20,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def add_missing_columns():
+    """
+    create_all() makes new tables but never changes existing ones. If the database
+    was created by an older version of the app, add any new columns so it keeps working
+    without deleting saved applications.
+    """
+    existing = {column["name"] for column in inspect(engine).get_columns("applications")}
+    new_columns = {
+        "job_description": "TEXT",
+        "match_score": "INTEGER",
+        "tailored_summary": "TEXT",
+    }
+    with engine.begin() as connection:
+        for name, sql_type in new_columns.items():
+            if name not in existing:
+                connection.execute(text(f"ALTER TABLE applications ADD COLUMN {name} {sql_type}"))

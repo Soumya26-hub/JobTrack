@@ -28,3 +28,19 @@ class Application(Base):
     applied_date = Column(Date, nullable=False, default=date.today)
     follow_up_date = Column(Date)
     notes = Column(Text)
+
+    # Filled in by the Resume Match agent when it is run for this application.
+    job_description = Column(Text)
+    match_score = Column(Integer)
+    tailored_summary = Column(Text)
+
+
+class ResumeProfile(Base):
+    """My resume content that the Resume Match agent compares against. One row only."""
+
+    __tablename__ = "resume_profile"
+
+    id = Column(Integer, primary_key=True)
+    intro = Column(String, nullable=False)
+    skills = Column(Text, nullable=False)
+    highlights = Column(Text, nullable=False)

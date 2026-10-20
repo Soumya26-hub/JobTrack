@@ -8,14 +8,21 @@ in an interview. Keep it simple and readable.
 ## Stack (do not add to it)
 - Backend: Python, FastAPI, SQLAlchemy ORM, SQLite, Pydantic
 - Frontend: plain HTML, CSS, JavaScript (no frameworks, no build step)
-- Do NOT add new libraries, frameworks, Docker, auth, or AI features unless asked.
+- Do NOT add new libraries, frameworks, Docker, auth, or AI provider/LLM packages
+  unless asked. The Resume Match agent is deliberately rule-based (pure Python).
   Testing during development may use FastAPI's TestClient (needs `httpx`), but
   do not add test files to the project unless asked.
 
+## Feature specs
+- `docs/FIND_JOBS_SPEC.md`: the Find Jobs feature (job-search APIs + Paste job). Follow it when asked to build that feature.
+
 ## Layout
 - `backend/main.py`: routes and app startup (lifespan creates tables)
-- `backend/crud.py`: all database reads and writes, stats, follow-ups
-- `backend/models.py`: `Application` table, with a status CHECK constraint
+- `backend/crud.py`: all database reads and writes, stats, follow-ups, agent runs
+- `backend/resume_agent.py`: Resume Match agent. Pure Python, no database or FastAPI
+  imports, so it can be tested on its own. Skill dictionary is `SKILLS`.
+- `backend/default_profile.py`: starting resume profile (seeded on first use)
+- `backend/models.py`: `Application` (status CHECK constraint) and `ResumeProfile`
 - `backend/schemas.py`: Pydantic request and response models
 - `backend/database.py`: engine, session, `get_db`
 - `frontend/`: `index.html`, `app.js`, `style.css`, `manifest.json`, icons
@@ -27,13 +34,17 @@ in an interview. Keep it simple and readable.
   If they change, update models.py, schemas.py, crud.py and app.js together.
 - In the frontend, insert user text with `textContent`, never `innerHTML`.
 - Keep the short comments that explain *why*; they help in interviews.
+- The agent must never invent experience: summaries only reuse the profile's
+  intro and highlights. Missing skills are shown, never added automatically.
+- New columns on `applications` must also be added to `add_missing_columns()` in
+  database.py, because `create_all()` does not alter existing tables.
 - Platform is Windows. Use `venv\Scripts\activate` and `python`, not `python3`.
 
 ## Run
 ```
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload
 ```
 Open http://localhost:8000 (API docs at /docs).

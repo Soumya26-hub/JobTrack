@@ -30,6 +30,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* Fixed height so the sticky tabs (top: 64px) leave no gap when + Add is hidden. */
+  min-height: 64px;
   padding: 12px 16px;
   background: var(--navy);
   color: #fff;
@@ -72,7 +74,7 @@ main { max-width: 720px; margin: 0 auto; padding: 16px; }
 }
 
 /* Keep the form title visible below the sticky header when scrolled into view. */
-.form { scroll-margin-top: 76px; }
+.form { scroll-margin-top: 120px; }
 .form h2 { margin: 0 0 10px; font-size: 1.1rem; }
 .form label { display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--muted); }
 .form input, .form select, .form textarea {
@@ -142,3 +144,49 @@ button.danger { color: var(--danger); }
   .stat span { font-size: 1.15rem; }
   .row { flex-direction: column; gap: 0; }
 }
+
+/* ---------- Tabs ---------- */
+.tabs {
+  position: sticky;
+  top: 64px;
+  z-index: 1;
+  display: flex;
+  background: var(--navy);
+  padding: 0 16px;
+}
+.tab {
+  flex: 1;
+  min-height: 44px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #c9d3e6;
+  font-weight: 600;
+}
+.tab.active { color: #fff; border-bottom-color: #fff; }
+
+/* ---------- Resume Match ---------- */
+.hint { margin: 0 0 10px; color: var(--muted); font-size: 0.85rem; }
+.score-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.score-row h2 { margin: 0; font-size: 1.1rem; }
+.score { flex: none; text-align: center; }
+.score span { display: block; font-size: 1.8rem; font-weight: 700; color: var(--navy); }
+.score small { color: var(--muted); }
+#match-result h3 { margin: 16px 0 6px; font-size: 0.95rem; }
+.skill-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.skill { padding: 4px 10px; border-radius: 999px; font-size: 0.85rem; }
+.skill.have { background: #e7f6ec; color: var(--offer); }
+.skill.missing { background: #fff1d6; color: var(--interview); }
+.summary {
+  margin: 0;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+.profile summary { font-weight: 600; cursor: pointer; }
+.profile form { margin-top: 12px; }
+.match-line { margin: 8px 0 0; font-size: 0.85rem; }
+.match-line summary { cursor: pointer; color: var(--navy); font-weight: 600; }
+.match-line p { margin: 6px 0 0; line-height: 1.45; }

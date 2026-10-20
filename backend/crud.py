@@ -3,8 +3,10 @@ from datetime import date, timedelta
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .models import STATUSES, Application
-from .schemas import ApplicationCreate, ApplicationUpdate
+from . import resume_agent
+from .default_profile import DEFAULT_PROFILE
+from .models import STATUSES, Application, ResumeProfile
+from .schemas import ApplicationCreate, ApplicationUpdate, MatchRequest, ProfileUpdate
 
 
 FOLLOW_UP_AFTER_DAYS = 7
@@ -107,3 +109,52 @@ def get_stats(db: Session) -> dict:
         "response_rate": response_rate,
         "follow_ups_due": len(get_follow_ups_due(db)),
     }
+
+
+# ---------- Resume profile and Resume Match agent ----------
+
+def get_profile(db: Session) -> ResumeProfile:
+    """Return my resume profile, creating it from the default the first time."""
+    profile = db.query(ResumeProfile).first()
+    if profile is None:
+        profile = ResumeProfile(**DEFAULT_PROFILE)
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+    return profile
+
+
+def update_profile(db: Session, data: ProfileUpdate) -> ResumeProfile:
+    profile = get_profile(db)
+    for field, value in data.model_dump().items():
+        setattr(profile, field, value.strip())
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+def run_resume_match(db: Session, request: MatchRequest) -> dict | None:
+    """
+    Compare a job description with my profile. If an application id is given,
+    save the description, score and summary on it. Returns None if that id doesn't exist.
+    """
+    application = None
+    if request.application_id is not None:
+        application = get_application(db, request.application_id)
+        if application is None:
+            return None
+
+    profile = get_profile(db)
+    result = resume_agent.analyze(
+        request.job_description,
+        {"intro": profile.intro, "skills": profile.skills, "highlights": profile.highlights},
+    )
+
+    if application is not None:
+        application.job_description = request.job_description
+        application.match_score = result["match_score"]
+        application.tailored_summary = result["tailored_summary"]
+        db.commit()
+        result["saved_to_application"] = application.id
+
+    return result
